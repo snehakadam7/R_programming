@@ -1,0 +1,378 @@
+---
+title: "CS 422"
+output: 
+  html_notebook :
+    toc: yes
+    toc_float: yes
+author: Sneha Shahaji Kadam
+editor_options: 
+  chunk_output_type: inline
+---
+
+### Part 2.1
+```{r}
+rm(list=ls())
+country_df <- read.csv("countries.csv",header=TRUE,row.names=1)
+```
+### Part 2.1(a)(i)
+```{r}
+summary(country_df)
+```
+### Part 2.1(a)(ii)
+```{r}
+boxplot(country_df$GDP,main="Boxplot for GDP")
+boxplot(country_df$HIV,main="Boxplot for HIV")
+boxplot(country_df$Lifeexp,main="Boxplot for Lifeexp")
+boxplot(country_df$Mil,main="Boxplot for Mil")
+boxplot(country_df$Oilcons,main="Boxplot for Oilcons")
+boxplot(country_df$Pop,main="Boxplot for Pop")
+boxplot(country_df$Tel,main="Boxplot for Tel")
+boxplot(country_df$Unempl,main="Boxplot for Unempl")
+
+## Boxplot for Pop has 2 outliers.Those 2 observations are numerically distant from the rest of the data.This attribute captures most of the variance.
+```
+
+### Part 2.1(b)
+```{r}
+pca_country_df <- prcomp(country_df,scale.=T)
+```
+### Part 2.1(c)(i)
+```{r}
+summary(pca_country_df)
+#First four components explains atleast 90% of the variance.
+```
+### Part 2.1(c)(ii)
+```{r}
+screeplot(pca_country_df,type="lines")
+```
+### Part 2.1(c)(iii)
+```{r}
+#Based on the screeplot, we'll choose first four components to use for modeling to engage in a feature reduction task.
+```
+### Part 2.1(d)
+```{r}
+rotation <- pca_country_df$rotation
+rotation
+#rotation <- -rotation
+#pca_country_df$x <- -pca_country_df$x
+```
+### Part 2.1(d)(i)
+```{r}
+#PC1 is positively correlated to GDP, Lifeexp, Oilcons, Tel attributes.
+#PC1 is negatively correlated to HIV, Mil, Pop, Unempl attributes.
+```
+### Part 2.1(d)(ii)
+```{r}
+#PC2 is positively correlated to GDP, Lifeexp,Mil, Oilcons,Pop, Tel attributes.
+#PC2 is negatively correlated to HIV, Unempl attributes.
+```
+
+### Part 2.1(e)
+```{r}
+biplot(pca_country_df,scale=0)
+```
+### Part 2.1(e)(i)
+```{r}
+pca_country_df$x[c(1,14,9),c(1,2)]
+```
+### Part 2.1(e)(ii)
+```{r}
+#PC1 is high for Japan and lowest for Brazil.
+#PC1 is positively correlated to GDP, Lifeexp, Oilcons, Tel attributes.
+#Japan has higher values in GDP,LifeExp, Oilcons,Tel attributes compare to Brazil and UK.
+
+#PC2 is high for UK and lowest for Brazil.
+#PC2 is positively correlated to GDP, Lifeexp,Mil, Oilcons,Pop, Tel attributes.
+#UK has higher values in GDP, Lifeexp,Mil, Oilcons,Pop, Tel attributes compare to Japan and Brazil.
+
+#PC1 and PC2 for Brazil, UK, and Japan make sense.
+```
+
+### Part 2.2
+```{r}
+library(tensorflow)
+library(keras)
+library(dplyr)
+library(caret)
+
+rm(list=ls())
+df <- read.csv("activity-small.csv")
+
+set.seed(1122)
+df <- df[sample(nrow(df)), ] 
+
+indx <- sample(1:nrow(df), 0.20*nrow(df))
+test.df  <- df[indx, ]
+train.df <- df[-indx, ]
+
+label.test <- test.df$label
+test.df$label <- NULL
+test.df <- as.data.frame(scale(test.df))
+test.df$label <- label.test
+rm(label.test)
+
+label.train <- train.df$label
+train.df$label <- NULL
+train.df <- as.data.frame(scale(train.df))
+train.df$label <- label.train
+rm(label.train)
+rm(indx)
+```
+
+### Part 2.2 (a)
+```{r}
+X_train <- select(train.df, -label)
+y_train <- train.df$label
+
+y_train.ohe <- to_categorical(y_train)
+X_test <- select(test.df, -label)
+y_test <- test.df$label
+y_test.ohe <- to_categorical(test.df$label)
+
+model <- keras_model_sequential() %>%
+  layer_dense(units = 10, activation="relu", input_shape=c(3)) %>%
+  layer_dense(units = 4, activation="softmax")
+
+model %>% 
+  compile(loss = "categorical_crossentropy", optimizer="adam", metrics=c("accuracy"))
+
+model %>% fit(
+  data.matrix(X_train), 
+  y_train.ohe,
+  epochs=100,
+  batch_size=1,
+  validation_split=0.20
+)
+
+model %>% evaluate(as.matrix(X_test), y_test.ohe)
+
+pred.class  <- model %>% predict_classes(as.matrix(X_test))
+pred.prob   <- model %>% predict(as.matrix(X_test)) %>% round(3)
+
+conf <- confusionMatrix(as.factor(y_test), as.factor(pred.class))
+#(i)Overall Accuracy
+cat(paste0("Overall Accuracy"))
+print(conf$overall[1])
+#(ii)Per-class sensitivity, specificity, and balanced accuracy on the test dataset
+cat(paste0("Per-class sensitivity"))
+print(conf$byClass[,1])
+cat(paste0("Per-class Specificity"))
+print(conf$byClass[,2])
+cat(paste0("Per-class Balance accuracy"))
+print(conf$byClass[,11])
+```
+
+### part 2.2(b)
+```{r}
+rm(model)
+batch <- c(1,32,64,128,256)
+i <- 1
+
+for (i in 1:5)
+{
+  model <- keras_model_sequential() %>%
+  layer_dense(units = 10, activation="relu", input_shape=c(3)) %>%
+  layer_dense(units = 4, activation="softmax")
+
+model %>% 
+  compile(loss = "categorical_crossentropy", optimizer="adam", metrics=c("accuracy"))
+
+  cat(paste0("neural network for batch size: ",batch[i]))
+  cat(paste0("\n"))
+  begin <- Sys.time()
+model %>% fit(
+  data.matrix(X_train), 
+  y_train.ohe,
+  epochs=100,
+  batch_size=batch[i],
+  validation_split=0.20
+)
+end <- Sys.time()
+time_elapsed <- end - begin
+cat(paste0("Time taken to train model: ",time_elapsed))
+i=i+1
+model %>% evaluate(as.matrix(X_test), y_test.ohe)
+
+pred.class  <- model %>% predict_classes(as.matrix(X_test))
+pred.prob   <- model %>% predict(as.matrix(X_test)) %>% round(3)
+
+conf <- confusionMatrix(as.factor(y_test), as.factor(pred.class))
+print(conf)
+rm(model)
+}
+```
+### Table for Time it took to train the network with different batch size
+```{r}
+Batch_Size <- c(1,32,64,128,264)
+Time_Sec <- c(192,54.02,52.79,51.84,51.21)
+time_table <- data.frame(Batch_Size,Time_Sec)
+colnames(time_table) <- c("Batch Size","Time (in seconds)")
+cat(paste0("Time it took to train the network with different batch size is as follows:"))
+print(time_table)
+
+#With increase in batch size, time taken to train network reduces.
+```
+
+### Part 2.2 (c)
+```{r}
+acc <- c(0.81,0.78,0.775,0.695,0.64)
+
+class0 <- c(0.9436,0.9436,0.9338,0.9142,0.9020)
+class1 <- c(0.8339,0.8164,0.79,0.7545,0.6445)
+class2 <- c(0.8690,0.8356,0.9001,0.7691,0.8495)
+class3 <- c(0.8638,0.8235,0.7563,0.7314,0.6338)
+
+new_table <- data.frame(Batch_Size,acc,class0,class1,class2,class3)
+
+colnames(new_table) <- c("Batch Size","Overall Accuracy","Balanced Accuracy for class0","Balanced Accuracy for class1","Balanced Accuracy for class2","Balanced Accuracy for class3")
+
+print(new_table)
+
+#Overall accuracy decreases with increase in batch size.
+#Balanced accuracy in class 0,1,3 decreases with increase in batch size.
+```
+
+### Part 2.2 (d)
+```{r}
+model <- keras_model_sequential() %>% layer_dense(units = 10, activation="relu", input_shape=c(3)) %>% layer_dense(units =5, activation="relu") %>% layer_dense(units = 4, activation="softmax")
+
+model %>% 
+  compile(loss = "categorical_crossentropy", optimizer="adam", metrics=c("accuracy"))
+
+model %>% fit(
+  data.matrix(X_train), 
+  y_train.ohe,
+  epochs=100,
+  batch_size=1,
+  validation_split=0.20
+)
+
+model %>% evaluate(as.matrix(X_test), y_test.ohe)
+
+pred.class  <- model %>% predict_classes(as.matrix(X_test))
+pred.prob   <- model %>% predict(as.matrix(X_test)) %>% round(3)
+
+conf <- confusionMatrix(as.factor(y_test), as.factor(pred.class))
+#(i)Overall Accuracy
+cat(paste0("Overall Accuracy"))
+print(conf$overall[1])
+#(ii)Per-class sensitivity, specificity, and balanced accuracy on the test dataset
+cat(paste0("Per-class sensitivity"))
+print(conf$byClass[,1])
+cat(paste0("Per-class Specificity"))
+print(conf$byClass[,2])
+cat(paste0("Per-class Balance accuracy"))
+print(conf$byClass[,11])
+
+## Adding new hidden layer improved the performance when compared with 2.2.(a)
+# first hidden layer captures simple feature. Adding more hidden layer helps to capture specific patterns of data.
+```
+
+### Part 2.3
+```{r}
+MY_IIT_ID <- 20458051
+user <- MY_IIT_ID %% 671
+paste("user selected: ", user)
+```
+###randomly choose 10 movies from the movies.csv file
+```{r}
+set.seed(100)
+movies <- read.csv("movies.csv", header=T, sep=",")
+index <- sample(1:nrow(movies), 10)
+movies_selected <- movies[index, ]
+cat(paste0("\n"))
+sprintf("10 randomly selected movies (movieID): ")
+movies_selected$movieId
+```
+### Build User Profile
+```{r}
+ratings_table <- read.csv("/Users/saumi/Desktop/422/homeworks/Homework 4/ml-latest-small/ratings.csv",header=T, sep=",")
+
+user603 <- subset(ratings_table, ratings_table[,1] == user)
+movie_id <- user603[,2]
+
+n <- length(movie_id)
+x <- 0
+x[1:n] <- 0
+user_profile <- data.frame(movie_id,Action=x, Adventure=x, Animation=x, Children=x, Comedy=x, Crime=x, Documentary=x, Drama=x, Fantasy=x,`Film-Noir`=x, Horror=x, IMAX=x, Musical=x, Mystery=x, Romance=x, `Sci-Fi`=x, Thriller=x, War=x, Western=x,`no genres listed`=x)
+
+names <- names(user_profile)
+library(stringr)
+names_new <- str_replace_all(names,c("Film.Noir"="Film-Noir","Sci.Fi"="Sci-Fi","no.genres.listed"="(no genres listed)"))
+names(user_profile) <- names_new
+
+genre_list <- c("Action", "Adventure", "Animation", "Children", "Comedy", "Crime", "Documentary", "Drama", "Fantasy","Film-Noir", "Horror", "IMAX", "Musical", "Mystery", "Romance", "Sci-Fi", "Thriller", "War", "Western","(no genres listed)")
+
+for (row in 1:nrow(user_profile)) {
+  genre <- as.list(strsplit(toString(movies[movies$movieId == user_profile[row, ]$movie_id, ]$genres),"[|]")[[1]])
+  for (g in genre) {
+    user_profile[row, g] = 1
+  }
+}
+
+for (g in genre_list) {
+  user_profile[n+1,] <- round(colMeans(user_profile),4)
+}
+user_profile[n+1,1] <- "AVG"
+user_profile
+
+cat(paste0("User Profile Vectors are as follows: "))
+cat(paste0(user_profile[nrow(user_profile),2:21]))
+```
+
+### Build Movie profile
+```{r}
+movie_id1 <- movies_selected$movieId
+
+n1 <- length(movie_id1)
+x <- 0
+x[1:n1] <- 0
+movie_profile <- data.frame(movie_id1,Action=x, Adventure=x, Animation=x, Children=x, Comedy=x, Crime=x, Documentary=x, Drama=x, Fantasy=x,`Film-Noir`=x, Horror=x, IMAX=x, Musical=x, Mystery=x, Romance=x, `Sci-Fi`=x, Thriller=x, War=x, Western=x,`no genres listed`=x)
+
+names1 <- names(movie_profile)
+library(stringr)
+names_new1 <- str_replace_all(names1,c("Film.Noir"="Film-Noir","Sci.Fi"="Sci-Fi","no.genres.listed"="(no genres listed)"))
+names(movie_profile) <- names_new1
+
+genre_list1 <- c("Action", "Adventure", "Animation", "Children", "Comedy", "Crime", "Documentary", "Drama", "Fantasy","Film-Noir", "Horror", "IMAX", "Musical", "Mystery", "Romance", "Sci-Fi", "Thriller", "War", "Western","(no genres listed)")
+
+for (row in 1:nrow(movie_profile)) {
+  genre1 <- as.list(strsplit(toString(movies[movies$movieId == movie_profile[row, ]$movie_id1, ]$genres),"[|]")[[1]])
+  for (g1 in genre1) {
+    movie_profile[row, g1] = 1
+  }
+}
+
+movie_profile
+```
+
+### Cosine Similarity
+```{r}
+cos_sim <- NULL
+options("digits"=4)
+
+for(i in 1:nrow(movie_profile)){
+  Similarity <- lsa::cosine(as.numeric(user_profile[n+1,-1]), as.numeric(movie_profile[movie_profile$movie_id1 == movie_profile[i,"movie_id1"],-1]))[[1]]
+movieId <- movie_profile[movie_profile$movie_id1 == movie_profile[i,"movie_id1"],1]
+MovieName <- as.vector(movies[movies$movieId == movieId,"title"])[1]
+#cat("Movie:", title, ", and similarity score:", similarity , "\n")
+tmp <- data.frame(movieId,MovieName,Similarity)
+cos_sim <- rbind(cos_sim,tmp)
+}
+
+print(cos_sim, row.names = FALSE)
+```
+
+### Recommended Movies for User
+```{r}
+recommended <- head(cos_sim[order(-cos_sim[,3]),],5)
+
+cat(paste0("User ID: ", user," chose the following 10 movies:"))
+cat(paste0("\n"))
+print(movie_id1)
+cat(paste0("\n"))
+cat(paste0("Of these, the following 5 movies are recommended:"))
+print.data.frame(recommended,row.names = FALSE)
+```
+
+
