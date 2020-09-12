@@ -1,0 +1,228 @@
+---
+title: "CS 422"
+output: 
+  html_notebook :
+    toc: yes
+    toc_float: yes
+author: Sneha Shahaji Kadam
+editor_options: 
+  chunk_output_type: inline
+---
+
+### Part 2.1
+```{r}
+rm(list=ls())
+library(arules)
+library(arulesViz)
+```
+
+### Part 2.1 (a)
+```{r}
+products <- read.csv("products.csv", sep=",",header = FALSE)
+trans_1k <- read.transactions("tr-1k-canonical.csv", sep=",")
+trans_5k <- read.transactions("tr-5k-canonical.csv", sep=",")
+trans_20k <- read.transactions("tr-20k-canonical.csv", sep=",")
+trans_75k <- read.transactions("tr-75k-canonical.csv", sep=",")
+```
+
+### Part 2.1 (b)
+```{r}
+freq_itemset_1k <- apriori(trans_1k, parameter=list(support=0.04, target="frequent itemsets"))
+inspect(sort(freq_itemset_1k, decreasing = T, by="count"))
+
+rules_1k <- apriori(trans_1k,parameter = list(support=0.04,confidence=0.3,target="rules"))
+inspect(sort(rules_1k,decreasing = T, by="support"))
+
+freq_itemset_5k <- apriori(trans_5k, parameter=list(support=0.04, target="frequent itemsets"))
+inspect(sort(freq_itemset_5k, decreasing = T, by="count"))
+
+rules_5k <- apriori(trans_5k,parameter = list(support=0.04,confidence=0.3,target="rules"))
+inspect(sort(rules_5k,decreasing = T, by="support"))
+
+freq_itemset_20k <- apriori(trans_20k, parameter=list(support=0.04, target="frequent itemsets"))
+inspect(sort(freq_itemset_20k, decreasing = T, by="count"))
+
+rules_20k <- apriori(trans_20k,parameter = list(support=0.04,confidence=0.3,target="rules"))
+inspect(sort(rules_20k,decreasing = T, by="support"))
+
+freq_itemset_75k <- apriori(trans_75k, parameter=list(support=0.04, target="frequent itemsets"))
+inspect(sort(freq_itemset_75k, decreasing = T, by="count"))
+
+rules_75k <- apriori(trans_75k,parameter = list(support=0.04,confidence=0.3,target="rules"))
+inspect(sort(rules_75k,decreasing = T, by="support"))
+```
+
+### Part 2.1 (c)
+```{r}
+# For 1K transactions: Number of frequent itemsets is 59 and number of rules are 27.
+# For 5K transactions: Number of frequent itemsets is 57 and number of rules are 23.
+# For 20K transactions: Number of frequent itemsets is 60 and number of rules are 21.
+# For 75K transactions: Number of frequent itemsets is 60 and number of rules are 21.
+
+# With the increase in number of transactions, number of rules decrease.
+```
+
+### Part 2.1 (d)
+```{r}
+sprintf("Most frequently purchased item and frequency")
+sort(table(unlist(LIST(trans_75k))), TRUE)[1:1]
+
+sprintf("least frequently purchased item and frequency")
+sort(table(unlist(LIST(trans_75k))))[1:1]
+```
+
+### Part 2.2
+```{r}
+library(factoextra)
+library(cluster)
+mammal <- read.table("file19.csv", sep="," ,header=TRUE)
+```
+### Part 2.2(a)(i)
+```{r}
+#I'll remove Atrribute "Name" and make it a rowname. Because it's a non numeric nominal attribute.
+
+rownames(mammal) <- mammal[,1]
+mammal <- mammal [ , -1]
+```
+### Part 2.2(a)(ii)
+```{r}
+#Yes. Data need to be standardized. "C" and "c" has values in the range of 0-1 where as other attributes have values in the range of 0-8 . So scaling should give us better result.
+
+mammal.scaled <- scale(mammal)
+```
+
+### Part 2.2(a)(iii)
+```{r}
+#Cleaned dtatset is included as file19.csv
+```
+
+### Part 2.2(b)(i)
+```{r}
+fviz_nbclust(mammal.scaled, kmeans, method="wss")
+
+fviz_nbclust(mammal.scaled, kmeans, method="silhouette")
+
+#It looks like beyond 7 cluster there is not significant reduce  in SS , and will lead to over fitting . So I'll take k = 7.
+```
+
+### Part 2.2(b)(ii)
+```{r}
+k <- kmeans(mammal.scaled, centers=7, nstart=10)
+fviz_cluster(k, data=mammal.scaled)
+```
+
+### Part 2.2(b)(iii)
+```{r}
+cat(paste0("number of observations in each cluster:\n"))
+print(k['size'])
+```
+
+### Part 2.2(b)(iv)
+```{r}
+cat(paste0("total SSE of the clusters:\n"))
+print(k['totss'])
+```
+
+### Part 2.2(b)(v)
+```{r}
+cat(paste0("SSE of the each cluster:\n"))
+print(k['withinss'])
+```
+
+### Part 2.2(b)(vi)
+```{r}
+for (clus in 1:7){
+ print(which(k$cluster == clus))
+  cat(paste0("(Cluster:",clus,")"))
+  cat(paste0("\n"))
+  cat(paste0("--------------------------------------"))
+ cat(paste0("\n"))
+}
+
+#The clustering make sense, It grouped mammals with similar tooth pattern. And mammals having similar tooth pattern have similar food habits that also affect where they inhabitate.
+#The algorithm currectly grouped almost all water mammals in one cluster, and in one cluster it grouped the mammals that are mostly found in trees. 
+#In one cluster it grouped all the mammals that live under the ground etc. 
+#K-means faces difficulty in selecting outliers, looks like ‘Armadillo’ is an outlier.
+```
+
+### Part 2.3
+```{r}
+set.seed(1122)
+index <- sample(1:nrow(mammal), 35)
+sampled_mammal <- mammal[index,]
+#We will scale sampled subset data of mammal
+sampled_mammal <- scale(sampled_mammal) 
+# Recognizing the first column as a row label is already done 2.2(a)(i)
+```
+
+### Part 2.3(a)
+```{r}
+hc.single <- eclust(sampled_mammal, "hclust" , hc_method="single")
+fviz_dend(hc.single, palette="jco", as.ggplot=T,main="Dendrogram for single linkage")
+
+hc.complete <- eclust(sampled_mammal, "hclust" , hc_method="complete")
+fviz_dend(hc.complete,palette="jco", as.ggplot=T,main="Dendrogram for complete linkage")
+
+hc.average <- eclust(sampled_mammal, "hclust" , hc_method="average")
+fviz_dend(hc.average, palette="jco", as.ggplot=T, main="Dendrogram for average linkage")
+```
+
+### Part 2.3(b)
+```{r}
+#list of all the two-singleton clusters are as follows:
+#For Single Link:
+#{Elk,Reindeer},{FurSeal,SeaLion},{LumpNoseBat,BrownBat},{StarNoseMole,Wolf}
+
+#For Complete Link:
+#{LumpNoseBat,BrownBat},{HouseBat,RedBat},{Elk,Reindeer},{StarNoseMole,Wolf},{SeaLion,FurSeal}
+
+#For Average Link:
+#{Elk,Reindeer},{LumpNoseBat,BrownBat},{HouseBat,RedBat},{SeaLion,FurSeal},{StarNoseMole,Wolf}
+```
+
+### Part 2.3(c)
+```{r}
+#By definition of pure, Single link is considered as pure as it has 4(least) two-singleton clusters among all.
+```
+
+### Part 2.3(d)
+```{r}
+clusters_height2 <- cutree(hc.single, h=2)
+
+cat(paste0("After drawing a horizontal line at a height of 2, we will have ",max(clusters_height2), " clusters."))
+```
+
+### Part 2.3(e)
+```{r}
+hc.single1 <- eclust(sampled_mammal,"hclust",k=max(clusters_height2), hc_method="single")
+fviz_dend(hc.single1, palette="jco", as.ggplot=T,main="Dendrogram for single linkage")
+
+hc.complete1 <- eclust(sampled_mammal,"hclust", k=max(clusters_height2),hc_method="complete")
+fviz_dend(hc.complete1,palette="jco", as.ggplot=T,main="Dendrogram for complete linkage")
+
+hc.average1 <- eclust(sampled_mammal,"hclust",k=max(clusters_height2), hc_method="average")
+fviz_dend(hc.average1, palette="jco", as.ggplot=T,main="Dendrogram for average linkage")
+```
+
+### Part 2.3(f)
+```{r}
+stats1 <- fpc::cluster.stats(dist(sampled_mammal),hc.single1$cluster)
+sprintf("For Single Link: Dunn Index %f", stats1['dunn'])
+sprintf("For Single Link: Silhouette width %f", stats1['avg.silwidth'])
+
+stats2 <- fpc::cluster.stats(dist(sampled_mammal), hc.complete1$cluster)
+sprintf("For Complete Link: Dunn Index %f", stats2['dunn'])
+sprintf("For Complete Link: Silhouette width %f", stats2['avg.silwidth'])
+
+stats3 <- fpc::cluster.stats(dist(sampled_mammal),hc.average1$cluster)
+sprintf("For Avg. Link: Dunn Index %f", stats3['dunn'])
+sprintf("For Avg. Link: Silhouette width %f", stats3['avg.silwidth'])
+```
+
+### Part 2.3(g)
+```{r}
+# Higher values of Dunn index and Silhouette width suggest that observations are well clustered. Values of Dunn index and Silhouette width are highest for Single Link. Therefore, Single link is the best linkage strategy.
+```
+
+
+
