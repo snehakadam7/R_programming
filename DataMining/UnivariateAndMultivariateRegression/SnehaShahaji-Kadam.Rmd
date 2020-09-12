@@ -1,0 +1,214 @@
+---
+title: "CS 422"
+output: 
+  html_notebook :
+    toc: yes
+    toc_float: yes
+author: Sneha Shahaji Kadam
+---
+
+### Part 2.1 (a)
+```{r}
+df <- read.csv("College.csv", header=T,row.names=1)
+firstfive <- df[1:5,c(1,5,8,10)]
+firstfive
+```
+
+### Part 2.1 (b)
+```{r}
+library(dplyr)
+private <- nrow(select(filter(df, Private == "Yes")))
+public <- nrow(select(filter(df, Private == "No")))
+str <- paste("There are ",private,"private colleges and ", public,"public collges")
+str
+```
+
+### Part 2.1 (c)
+```{r}
+newdataframe <- df[,c("Private","Apps","Accept","Enroll","PhD","perc.alumni","S.F.Ratio","Grad.Rate")]
+newdf <- head(newdataframe)
+newdf
+```
+
+### Part 2.1 (d) (i)
+```{r}
+phd.private <- select(filter(newdataframe,Private == "Yes"),"PhD")
+hist1 <- hist(phd.private$PhD, main="Histogram of PhD holders in private colleges", xlab="Number of PhD holders in private colleges", ylab="frequency",col=rainbow(10))
+```
+### Part 2.1 (d) (ii)
+```{r}
+phd.public <- select(filter(newdataframe,Private == "No"),"PhD")
+hist2 <- hist(phd.public$PhD, main="Histogram of PhD holders in public colleges", xlab="Number of PhD holders in public colleges", ylab="frequency", col=rainbow(8))
+```
+
+### Part 2.1 (e)(i)
+```{r}
+min.graduate.rate.colleges <- newdataframe[order(newdataframe$Grad.Rate),]
+min <- min.graduate.rate.colleges[c(1:5),]
+rownames(min)
+```
+
+### Part 2.1 (e)(ii)
+```{r}
+max.graduate.rate.colleges <- newdataframe[order(-newdataframe$Grad.Rate),]
+max <- max.graduate.rate.colleges[c(1:5),]
+rownames(max)
+```
+
+### Part 2.1 (f) (i)
+```{r}
+#install.packages("psych")
+library(psych)
+pairs.panels(newdataframe[,c("PhD","S.F.Ratio","Grad.Rate")])
+```
+
+# Part 2.1 (f) (ii) Attributes PhD and Grad.Rate have highest correlation of 0.31.This positive correlation means that PhD decreases as Grad.Rate decreases, similarly PhD  increases as Grad.Rate increases.
+
+# Part 2.1 (f) (iii) Attributes S.F.Ratio and Grad.Rate have lowest correlation of -0.31. This negative correlation means that as S.F.Ratio increases in value, Grad.Rate will decrease; similarly, if S.F.Ratio decreases in value, Grad.Rate will increase.
+
+### Part 2.1 (g)
+```{r}
+boxplot(df$perc.alumni~df$Private ,data=df,main="Private/Public colleges with Percent of alumni", xlab="Private College",ylab="Percent of alumni who donate")
+```
+# Alumni of private colleges donate more to their colleges.
+
+### Part 2.1 (h)
+```{r}
+summary(df$Expend)
+cum_dis_fn <- ecdf(df$Expend)
+```
+### Part 2.1 (h)(iii)
+```{r}
+plot <- plot(cum_dis_fn, main="Cumulative distribution function for Exenditure",xlab="Expenditure per student", ylab="% of students")
+grid(plot)
+```
+# Part 2.1 h (i)By looking at the graph,we can say that median expenditure per student is around 8000 dollars. By running summary(df$Expend), we get exact value of median expenditure per student which is 8377 dollars.
+
+# Part 2.1 h (ii) 80% of the students pay less than 12,000 dollars
+
+### Part 2.2(a)
+```{r}
+library(ISLR)
+data(Auto)
+sim_lin_reg <- lm(mpg ~ horsepower, data = Auto)
+summary(sim_lin_reg)
+```
+#Part 2.2(a)(i) Yes, there is a relationship between horsepower and mpg. This can be determined by testing the null hypothesis of all regression coefficients equal to zero. As the F-statistic is far larger than 1 and the p-value of the F-statistic is close to zero we can reject the null hypothesis and say that there is a statistically significant relationship between horsepower and mpg.
+
+#Part 2.2(a)(ii) The multiple R-squared of the sim_lin_reg(simple linear regression) was about 0.6059. This value indicates that about 60.59% of the variation in the response variable (mpg) is due to the predictor variable (horsepower).
+
+#Part 2.2(a)(iii) As the coeficient of “horsepower” is negative, the relationship between mpg and horsepower is negative. The more horsepower an automobile has the linear regression indicates the less mpg fuel efficiency the automobile will have.
+
+### Part 2.2 (a) (iv)
+```{r}
+predict(sim_lin_reg, data.frame(horsepower = 98), interval = "prediction")
+predict(sim_lin_reg, data.frame(horsepower = 98), interval = "confidence")
+```
+
+### Part 2.2(b)
+```{r}
+plot(Auto$horsepower, Auto$mpg, main = "Scatterplot of mpg vs. horsepower", xlab = "horsepower", ylab = "mpg", col="blue")
+abline(sim_lin_reg,col="red")
+```
+
+### Part 2.2 (c)
+```{r}
+par(mfrow = c(2,2))
+plot(sim_lin_reg,col="blue")
+```
+#The plot of residuals versus fitted values indicates the presence of non-linearity in the data. 
+#The plot of standardized residuals versus leverage indicates the presence of few high leverage points and few outliers (higher than 2 or lower than -2).
+
+### Part 2.3
+```{r}
+set.seed(1122)
+index <- sample(1:nrow(Auto), 0.95*dim(Auto)[1])
+train.df <- Auto[index,]
+test.df <- Auto[-index,]
+```
+### Part 2.3 (a)
+```{r}
+multi_reg_model <- lm(mpg~.-name, data = Auto)
+```
+
+### Part 2.3 (a)(i)
+#name has all unique string values. we can't categorize them. Therefore, using name as Predictor is not a reasonable thing to do.
+
+### Part 2.3 (a)(ii)
+```{r}
+summary(multi_reg_model)
+len_co <- length(coefficients(multi_reg_model))
+RSS <- c(crossprod(multi_reg_model$residuals))
+MSE <- RSS / length(multi_reg_model$residuals)
+RMSE <- sqrt(MSE)
+paste0("Root mean squared error is ", RMSE)
+```
+#R² is a measure of how close the data is to the fitted regression line.  The higher the R-squared, the better the model fits your data.
+#The RMSE is the square root of the variance of the residuals.Lower values of RMSE indicate better fit.
+#From above values of R²,RSE and RMSE, we can say that model is a good fit.
+
+### Part 2.3 (a)(iii)
+```{r}
+plot(multi_reg_model$residuals, ylab="Residuals", main="Residual Model", col="blue") 
+abline(0, 0)  
+```
+### Part 2.3 (a)(iv)
+```{r}
+hist(multi_reg_model$residuals,xlab = "Model Residuals", 
+     main="Residual Histogram")
+```
+# Yes It's a gaussian distribution.
+# Residuals are normally distributed with two outliers.
+
+### Part 2.3 (b) (i)
+# Predictors origin, weight and year are statistically significant than others because they have lowest p value.
+```{r}
+multi_reg_model_3pred <- lm(mpg~origin+weight+year, data = Auto)
+```
+
+### Part 2.3 (b) (ii)
+```{r}
+summary(multi_reg_model_3pred)
+len_co2 <- length(coefficients(multi_reg_model_3pred))
+RSS2 <- c(crossprod(multi_reg_model_3pred$residuals))
+MSE2 <- RSS2 / length(multi_reg_model_3pred$residuals)
+RMSE2 <- sqrt(MSE2)
+paste0("Root mean squared error is ", RMSE2)
+```
+
+### Part 2.3 (b) (iii)
+```{r}
+plot( multi_reg_model_3pred$residuals, ylab="Residuals", main="Residual Model", col="blue") 
+abline(0, 0)
+```
+#From above values of R²,RSE and RMSE, we can say that model is a good fit.
+
+### Part 2.3 (b) (iv)
+```{r}
+hist(multi_reg_model_3pred$residuals,xlab = "Model Residuals", main="Residual Histogram")
+```
+# Yes It's a gaussian distribution.
+# Residuals are normally distributed with two outliers.
+
+### Part 2.3 (b) (v)
+# Higher R² value means model is better.Therefore model produced in (a) is better because it has higher R² value than (b) .
+
+### Part 2.3 (d)
+```{r}
+prediction <- predict.lm(multi_reg_model_3pred ,newdata=select(test.df,c("weight","year","origin")), interval="confidence", level=0.95)
+
+verify_prediction <- data.frame(predicted_values=as.integer(prediction[,1]), actual_values=test.df$mpg)
+```
+
+### Part 2.3 (e)
+```{r}
+no_of_exact_match <- verify_prediction$predicted_values == verify_prediction$actual_values
+
+final_df <- cbind(test.df$mpg,prediction,no_of_exact_match)
+
+colnames(final_df) <- c("Response","Prediction","Lower","Upper","Matches")
+
+final_df
+
+paste0("Total observations correctly predicted: ", sum(no_of_exact_match))
+```
